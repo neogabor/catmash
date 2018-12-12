@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
@@ -23,6 +24,7 @@ import javax.servlet.http.HttpServletResponse;
 public class VoteServlet extends HttpServlet{
 
     private static Map<String, String> imageMap = new HashMap<>();
+    private static Map<String, Integer> score = new HashMap<>();
     
     @Override
     public void init() throws ServletException {
@@ -34,6 +36,7 @@ public class VoteServlet extends HttpServlet{
             for (int i=0; i < images.size(); i++) {
                     JsonObject object = images.getJsonObject(i);
                     imageMap.put(object.getString("url"), object.getString("id"));
+                    score.put(object.getString("url"), 0);
             }
         } catch (MalformedURLException ex) {
             ServletContext sCtx = getServletConfig().getServletContext();
@@ -47,15 +50,20 @@ public class VoteServlet extends HttpServlet{
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         List<String> images = new ArrayList<>(imageMap.keySet());
-        String url1 = images.get(0);
-        String url2 = images.get(1);
+        int[] randomNumbers = new Random().ints(0, imageMap.size() - 1).distinct().limit(2).toArray();
+        String url1 = images.get(randomNumbers[0]);
+        String url2 = images.get(randomNumbers[1]);
 
         request.setAttribute("kep1", url1);
         request.setAttribute("kep2", url2);
         request.getRequestDispatcher("/WEB-INF/views/vote.jsp").forward(
                         request, response);
     }
-    
-    
 
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String url = request.getParameterMap().keySet().iterator().next();
+        score.put(url, score.get(url)+1);
+    }
+    
 }
