@@ -35,5 +35,6 @@
 <body>
     <img src=${requestScope.kep1} class="cat" onclick="sendRequest(1)">
     <img src=${requestScope.kep2} class="cat" onclick="sendRequest(2)">
+    <button onclick="window.location='rankings'">Rankings</button>
 </body>
 </html>

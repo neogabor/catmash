@@ -65,5 +65,8 @@ public class VoteServlet extends HttpServlet{
         String url = request.getParameterMap().keySet().iterator().next();
         score.put(url, score.get(url)+1);
     }
-    
+
+    public static Map<String, Integer> getScore() {
+        return score;
+    }
 }
