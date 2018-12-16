@@ -20,11 +20,12 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-@WebServlet(name = "vote", urlPatterns = { "/vote" })
+@WebServlet(name = "vote", urlPatterns = { "/index.html" })
 public class VoteServlet extends HttpServlet{
 
     private static Map<String, String> imageMap = new HashMap<>();
-    private static Map<String, Integer> score = new HashMap<>();
+    private volatile static Map<String, Integer> score = new HashMap<>();
+    
     
     @Override
     public void init() throws ServletException {
@@ -63,7 +64,9 @@ public class VoteServlet extends HttpServlet{
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String url = request.getParameterMap().keySet().iterator().next();
-        score.put(url, score.get(url)+1);
+        synchronized (this) {
+            score.put(url, score.get(url)+1);
+        }
     }
 
     public static Map<String, Integer> getScore() {
