@@ -1,6 +1,10 @@
 package com.latelier.servlet;
 
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -29,21 +33,27 @@ public class VoteServlet extends HttpServlet{
     
     @Override
     public void init() throws ServletException {
+        ServletContext sCtx = getServletConfig().getServletContext();
         try {
             URLConnection connection = new URL("https://latelier.co/data/cats.json").openConnection();
             JsonReader bf = Json.createReader(connection.getInputStream());
             JsonObject jo = bf.readObject();
             JsonArray images = jo.getJsonArray("images");
+            Map<String, Integer> idScore = readScore(sCtx);
+            boolean needCheckForChanges = (idScore.isEmpty() || idScore.size()!=images.size());
             for (int i=0; i < images.size(); i++) {
-                    JsonObject object = images.getJsonObject(i);
-                    imageMap.put(object.getString("url"), object.getString("id"));
-                    score.put(object.getString("url"), 0);
+                JsonObject object = images.getJsonObject(i);
+                imageMap.put(object.getString("url"), object.getString("id"));
+                if (needCheckForChanges) {
+                    score.put(object.getString("url"), 
+                            idScore.containsKey(object.getString("id")) ? idScore.get(object.getString("id")) : 0);
+                } else {
+                    score.put(object.getString("url"), idScore.get(object.getString("id")));
+                }
             }
         } catch (MalformedURLException ex) {
-            ServletContext sCtx = getServletConfig().getServletContext();
             sCtx.log(ex.getMessage());
         } catch (IOException ex) {
-            ServletContext sCtx = getServletConfig().getServletContext();
             sCtx.log(ex.getMessage());
         }
     }
@@ -69,7 +79,32 @@ public class VoteServlet extends HttpServlet{
         }
     }
 
+    @Override
+    public void destroy() {
+        try(ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("..//webapps//catmash//WEB-INF//score"))) {
+            Map<String, Integer> idScore = new HashMap<>();
+            for(String url : score.keySet()) {
+                idScore.put(imageMap.get(url), score.get(url));
+            }
+            oos.writeObject(idScore);
+        } catch (Exception e) {
+            getServletConfig().getServletContext().log(e.getMessage());
+        }
+    }
+    
+    
+
     public static Map<String, Integer> getScore() {
         return score;
+    }
+    
+    private static Map<String, Integer> readScore(ServletContext sCtx) {
+        Map<String, Integer> idScore = new HashMap<>();
+        try(ObjectInputStream ois = new ObjectInputStream(new FileInputStream("..//webapps//catmash//WEB-INF//score"))) {
+                return (Map<String, Integer>) ois.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            sCtx.log(e.getMessage());
+        }
+        return idScore;
     }
 }

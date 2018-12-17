@@ -28,7 +28,7 @@
     <script>
         function sendRequest(data) {
             var xhr = new XMLHttpRequest();
-            xhr.open("POST", "vote", true);
+            xhr.open("POST", "index.html", true);
             xhr.onload = function() {
                 if (xhr.status === 200) {
                     console.log("Successful request");
