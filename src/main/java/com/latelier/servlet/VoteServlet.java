@@ -1,9 +1,11 @@
 package com.latelier.servlet;
 
+import com.latelier.database.Model;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,26 +27,34 @@ public class VoteServlet extends HttpServlet{
 
     private static Map<String, String> imageMap = new HashMap<>();
     private volatile static Map<String, Integer> score = new HashMap<>();
-    
+    private final Model model = new Model();
     
     @Override
     public void init() throws ServletException {
+        ServletContext sCtx = getServletConfig().getServletContext();
         try {
             URLConnection connection = new URL("https://latelier.co/data/cats.json").openConnection();
             JsonReader bf = Json.createReader(connection.getInputStream());
             JsonObject jo = bf.readObject();
             JsonArray images = jo.getJsonArray("images");
+            Map<String,Integer> idScore =  model.getScoreFromDB();
+            boolean needCheckForChanges = (idScore.isEmpty() || idScore.size()!=images.size());
             for (int i=0; i < images.size(); i++) {
-                    JsonObject object = images.getJsonObject(i);
-                    imageMap.put(object.getString("url"), object.getString("id"));
-                    score.put(object.getString("url"), 0);
+                JsonObject object = images.getJsonObject(i);
+                imageMap.put(object.getString("url"), object.getString("id"));
+                if (needCheckForChanges) {
+                    score.put(object.getString("url"), 
+                            idScore.containsKey(object.getString("id")) ? idScore.get(object.getString("id")) : 0);
+                }else {
+                    score.put(object.getString("url"), idScore.get(object.getString("id")));
+                }
             }
         } catch (MalformedURLException ex) {
-            ServletContext sCtx = getServletConfig().getServletContext();
             sCtx.log(ex.getMessage());
         } catch (IOException ex) {
-            ServletContext sCtx = getServletConfig().getServletContext();
             sCtx.log(ex.getMessage());
+        } catch (SQLException | ClassNotFoundException ex) {
+            sCtx.log(ex.getMessage(), ex);
         }
     }
 
@@ -65,11 +75,28 @@ public class VoteServlet extends HttpServlet{
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String url = request.getParameterMap().keySet().iterator().next();
         synchronized (this) {
-            score.put(url, score.get(url)+1);
+            int point = score.get(url) + 1;
+            score.put(url, point);
+            try {
+                model.updateScore(imageMap.get(url), point);
+            } catch (SQLException | ClassNotFoundException ex) {
+                getServletConfig().getServletContext().log(ex.getMessage(), ex);
+            }
         }
     }
 
     public static Map<String, Integer> getScore() {
         return score;
     }
+
+    @Override
+    public void destroy() {
+        try {
+            model.close();
+        } catch (SQLException ex) {
+            getServletConfig().getServletContext().log(ex.getMessage(), ex);
+        }
+    }
+    
+    
 }
